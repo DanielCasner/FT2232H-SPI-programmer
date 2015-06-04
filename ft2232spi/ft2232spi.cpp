@@ -198,16 +198,8 @@ int _tmain(int argc, _TCHAR* argv[]) {
 
 	status = SPI_Write(ftHandle, wBuffer, sizeTransferred, &sizeTransferred, SPI_OPTS);
 	APP_CHECK_STATUS(status);
-	printf("Transferred %d bytes\r\n", sizeTransferred);
-	unsigned long retry = 0;
-	bool state=FALSE;
-	SPI_IsBusy(ftHandle,&state);
-	while((FALSE==state) && (retry<SPI_WRITE_COMPLETION_RETRY))
-	{
-		printf("SPI device is busy(%u)\n",(unsigned)retry);
-		SPI_IsBusy(ftHandle,&state);
-		retry++;
-	}
+
+	Sleep(50);
 
 	status = SPI_CloseChannel(ftHandle);
 	APP_CHECK_STATUS(status);
