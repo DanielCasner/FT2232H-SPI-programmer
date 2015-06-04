@@ -162,6 +162,18 @@ int _tmain(int argc, _TCHAR* argv[]) {
 
 	printf("Opened channel %d\r\n", channelToOpen);
 
+	channelConf.Pin = 0x80B080B0; // Reset the IOs
+	status = SPI_InitChannel(ftHandle,&channelConf);
+	APP_CHECK_STATUS(status);
+	Sleep(1);
+	status = SPI_CloseChannel(ftHandle);
+	APP_CHECK_STATUS(status);
+	printf("Put the chip into programming mode\r\n");
+	system("pause");
+
+	status = SPI_OpenChannel(channelToOpen, &ftHandle);
+	channelConf.Pin = 0xF0B0F0B0; // Reset the IOs
+
 	status = SPI_InitChannel(ftHandle,&channelConf);
 	APP_CHECK_STATUS(status);
 
@@ -197,18 +209,8 @@ int _tmain(int argc, _TCHAR* argv[]) {
 		retry++;
 	}
 
-#ifdef TEST_COMMUNICATION
-	Sleep(10);
-
-	for (sizeTransferred = 0; sizeTransferred < 10; sizeTransferred++) wBuffer[sizeTransferred] = sizeTransferred;
-	status = SPI_ReadWrite(ftHandle, rBuffer, wBuffer, sizeTransferred, &sizeTransferred, SPI_OPTS);
-	APP_CHECK_STATUS(status);
-	printf("Transferred %d bytes\r\n", sizeTransferred);
-	rBuffer[sizeTransferred] = 0;
-	printf("Received %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x \r\n", rBuffer[0], rBuffer[1], rBuffer[2], rBuffer[3], rBuffer[4], rBuffer[5], rBuffer[6], rBuffer[7], rBuffer[8], rBuffer[9]);
-		
-#endif
 	status = SPI_CloseChannel(ftHandle);
+	APP_CHECK_STATUS(status);
 
 	delete wBuffer;
 
@@ -216,9 +218,6 @@ int _tmain(int argc, _TCHAR* argv[]) {
 	Cleanup_libMPSSE();
 #endif
 
-#ifndef __linux__
-	system("pause");
-#endif
 	return 0;
 }
 
