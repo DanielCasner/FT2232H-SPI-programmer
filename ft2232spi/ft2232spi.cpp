@@ -1,7 +1,9 @@
 // ft2232spi.cpp : Defines the entry point for the console application.
 //
 
+#ifdef _WIN32
 #include "stdafx.h"
+#endif
 
 /* Standard C libraries */
 #include<stdio.h>
@@ -11,13 +13,15 @@
 /* OS specific libraries */
 #ifdef _WIN32
 #include<windows.h>
+#pragma comment(lib, "FTD2XX.lib")
+#pragma comment(lib, "libMPSSE.lib")
+#else
+#include <unistd.h>
+#define Sleep sleep
 #endif
 
 /* Include D2XX header*/
 #include "ftd2xx.h"
-
-#pragma comment(lib, "FTD2XX.lib")
-#pragma comment(lib, "libMPSSE.lib")
 
 /* Include libMPSSE header */
 #include "libMPSSE_spi.h"
@@ -43,7 +47,7 @@ void printUsage() {
 }
 
 
-wchar_t* getOpt(const wstring& flag, const bool arg, wchar_t* args[], const int argc) {
+char* getOpt(const string& flag, const bool arg, char* args[], const int argc) {
 	for (int i=0; i<argc; ++i) {
 		if (flag.compare(args[i]) == 0) {
 			if (arg) {
@@ -56,44 +60,49 @@ wchar_t* getOpt(const wstring& flag, const bool arg, wchar_t* args[], const int 
 	return NULL;
 }
 
+void userPause() {
+#ifdef _WIN32
+	system("pause");
+#else
+	char key;
+	printf("Press any key to continue...\r\n");
+	fgets(&key, 1, stdin);
+#endif
+}
 
-int _tmain(int argc, _TCHAR* argv[]) {
-	FT_STATUS ftStatus;
+
+int main(int argc, char* argv[]) {
 	FT_HANDLE ftHandle;
 	uint8* wBuffer = NULL;
 	FILE* fileHandle;
 	size_t fileSize;
 	FT_STATUS status = FT_OK;
-	FT_DEVICE_LIST_INFO_NODE devList = {0};
 	ChannelConfig channelConf = {0};
 	uint32 chipSelect = SPI_CONFIG_OPTION_CS_DBUS4;
 	uint32 spiMode = SPI_CONFIG_OPTION_MODE0;
 	string filePathName;
-	wchar_t* arg;
-	uint8 address = 0;
+	char* arg;
 	uint32 channels = 0;
 	uint32 channelToOpen = 0;
 	uint32 sizeTransferred;
-	uint16 data = 0;
-	uint8 i = 0;
 
-	if ((argc < 2) || getOpt(L"-h", false, argv, argc)) {
+	if ((argc < 2) || getOpt("-h", false, argv, argc)) {
 		printUsage();
 		exit(0);
 	}
 
 
-	wstring wFPN = wstring(argv[1]);
+	string wFPN  = string(argv[1]);
 	filePathName = string(wFPN.begin(), wFPN.end()); // This is a dumb convert that will fail on non ASCII file path name input
 
-	arg = getOpt(L"--chan", true, argv, argc);
+	arg = getOpt("--chan", true, argv, argc);
 	if (arg) {
-		channelToOpen = _wtoi(arg);
+		channelToOpen = atoi(arg);
 	}
 
-	arg = getOpt(L"--cs", true, argv, argc);
+	arg = getOpt("--cs", true, argv, argc);
 	if (arg) {
-		const int csNum = _wtoi(arg);
+		const int csNum = atoi(arg);
 		switch (csNum) {
 		case 3:
 			chipSelect = SPI_CONFIG_OPTION_CS_DBUS3;
@@ -116,9 +125,9 @@ int _tmain(int argc, _TCHAR* argv[]) {
 		}
 	}
 
-	arg = getOpt(L"--mode", true, argv, argc);
+	arg = getOpt("--mode", true, argv, argc);
 	if (arg) {
-		const int modeNum = _wtoi(arg);
+		const int modeNum = atoi(arg);
 		switch (modeNum) {
 		case 0:
 			spiMode = SPI_CONFIG_OPTION_MODE0;
@@ -150,12 +159,12 @@ int _tmain(int argc, _TCHAR* argv[]) {
 #endif
 	status = SPI_GetNumChannels(&channels);
 	APP_CHECK_STATUS(status);
-	
+
 	if (channels < channelToOpen) {
 		printf("Channel %d not available, only %d channels detected\r\n", channelToOpen, channels);
 		exit(1);
 	}
-	
+
 	/* Open the first available channel */
 	status = SPI_OpenChannel(channelToOpen, &ftHandle);
 	APP_CHECK_STATUS(status);
@@ -169,7 +178,7 @@ int _tmain(int argc, _TCHAR* argv[]) {
 	status = SPI_CloseChannel(ftHandle);
 	APP_CHECK_STATUS(status);
 	printf("Put the chip into programming mode\r\n");
-	system("pause");
+	userPause();
 
 	status = SPI_OpenChannel(channelToOpen, &ftHandle);
 	channelConf.Pin = 0xF0B0F0B0; // Reset the IOs
@@ -184,14 +193,14 @@ int _tmain(int argc, _TCHAR* argv[]) {
 	}
 	fseek(fileHandle, 0, SEEK_END);
 	fileSize   = ftell(fileHandle);
-	printf("Programming file is %d bytes\r\n", fileSize);
-	fseek(fileHandle, 0, SEEK_SET);		
+	printf("Programming file is %ld bytes\r\n", fileSize);
+	fseek(fileHandle, 0, SEEK_SET);
 
 	wBuffer = new uint8[fileSize + 50];
 
 	sizeTransferred = fread(wBuffer, sizeof(uint8), fileSize, fileHandle);
 	if (sizeTransferred != fileSize) {
-		printf("Didn't read full programming file %d < %d\r\n", sizeTransferred, fileSize);
+		printf("Didn't read full programming file %u < %ld\r\n", sizeTransferred, fileSize);
 		exit(1);
 	}
 	for (int i=0; i<50; ++i) wBuffer[sizeTransferred++] = 0; // Add dummy bytes
@@ -212,4 +221,3 @@ int _tmain(int argc, _TCHAR* argv[]) {
 
 	return 0;
 }
-
